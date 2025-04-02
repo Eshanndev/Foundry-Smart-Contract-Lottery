@@ -8,11 +8,11 @@ import {HelperConfig} from "./HelperConfig.s.sol";
 contract DeployRaffle is Script {
 
 
-  function run() external returns(Raffle){
+  function run() external returns(Raffle,HelperConfig){
     return deploy();
   }
 
-  function deploy()public returns(Raffle){
+  function deploy()public returns(Raffle,HelperConfig){
 
 
     HelperConfig helperConfig = new HelperConfig();
@@ -31,7 +31,7 @@ contract DeployRaffle is Script {
       config.callbackGasLimit
     );
     vm.stopBroadcast();
-    return raffle;
+    return (raffle, helperConfig);
 
   }
 
