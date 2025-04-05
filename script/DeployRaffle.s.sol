@@ -18,7 +18,7 @@ contract DeployRaffle is Script {
     HelperConfig helperConfig = new HelperConfig();
 
     
-    HelperConfig.networkConfig memory config = helperConfig.getActiveNetworkConfig();
+    HelperConfig.networkConfig memory config = helperConfig.getConfig();
     
 
     vm.startBroadcast();

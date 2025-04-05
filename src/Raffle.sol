@@ -5,16 +5,9 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 
-/**errors */
-error Raffle__SendMoreToEnterRaffle();
-error Raffle__transferError();
-error Raffle__resultsCounting();
-error Raffle__upkeepNotNeeded(uint256 playersLength , uint256 contractBalance , RaffleState s_raffleState);
 
-enum RaffleState {
-  OPEN,
-  COUNTING
-}
+
+
 
 /**
  * @title A sample raffle contract
@@ -23,6 +16,18 @@ enum RaffleState {
  * @dev implements chainlink VRFv2.5
  */
 contract Raffle is VRFConsumerBaseV2Plus {
+
+  //enums
+  enum RaffleState {
+  OPEN,
+  COUNTING
+  }
+
+  /**errors */
+  error Raffle__SendMoreToEnterRaffle();
+  error Raffle__transferError();
+  error Raffle__resultsCounting();
+  error Raffle__upkeepNotNeeded(uint256 playersLength , uint256 contractBalance , RaffleState s_raffleState);
 
   /**events */
   event raffleEntered(address indexed player);
@@ -138,5 +143,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
     return i_entranceFee;
   }
 
+  function getPlayer(uint256 index)public view returns(address){
+    return s_players[index];
+  }
 
+  function getRaffleState()public view returns(RaffleState){
+    return s_raffleState;
+  } 
+
+  function getInterval()public view returns(uint256){
+    return i_interval;
+  }
 }
