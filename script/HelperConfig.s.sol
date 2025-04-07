@@ -9,7 +9,7 @@ import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VR
 
 
 
-abstract contract codeConstants {
+abstract contract CodeConstants {
 
   uint256 constant public SEPOLIA_CHAIN_ID =  11155111;
   uint256 constant public ANVIL_CHAIN_ID =  31337;
@@ -23,7 +23,7 @@ abstract contract codeConstants {
 
 
 
-contract HelperConfig is codeConstants,Script {
+contract HelperConfig is CodeConstants,Script {
 
   
   error HelperConfig__invalidNetwork();
@@ -36,6 +36,7 @@ contract HelperConfig is codeConstants,Script {
     bytes32 keyHash;
     uint256 subId;
     uint32 callbackGasLimit;
+    address link;
     
   }
 
@@ -55,7 +56,7 @@ contract HelperConfig is codeConstants,Script {
   }
 
   function getConfigByChainid(uint256 _chainid) public returns(networkConfig memory){
-    if(networkConfigs[_chainid].vrfCoordinator != address(0)){
+    if(networkConfigs[_chainid].vrfCoordinator != address(0)){ // we can use any field of the struct to checl this condition
       return networkConfigs[_chainid];
     }else if(_chainid == ANVIL_CHAIN_ID){
       return getOrCreateAnvilEthConfig();
@@ -77,17 +78,18 @@ contract HelperConfig is codeConstants,Script {
   function getSepoliaEthConfig()public pure returns(networkConfig memory){
     networkConfig memory sepoliaEthConfig = networkConfig({
         entranceFee:0.01 ether,
-        interval:3600,
+        interval:30,
         keyHash:0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,subId:628368851340348519913626481334836042622242987999739258721281183736411821644,
         vrfCoordinator:0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
-        callbackGasLimit:500000
+        callbackGasLimit:500000,
+        link:0x779877A7B0D9E8603169DdbD7836e478b4624789 //0x779877A7B0D9E8603169DdbD7836e478b4624789
       });
     return sepoliaEthConfig;
   }
 
   /**@notice  we use a mock vrfcordinator contract in anvil. because of using the contract address by default we have to deply the mock contract to anvil and get the contract address
    * @dev there is no need of deploying it again and again if a previous contract exists.
-   * so first check if vrfcoordinator in anvil network confug is empty or not. only if its empty create an one.
+   * so first check if vrfcoordinator in anvil network config is empty or not. only if its empty create an one
    * 
   */
   function getOrCreateAnvilEthConfig()public returns(networkConfig memory){
@@ -106,11 +108,12 @@ contract HelperConfig is codeConstants,Script {
 
       anvilEthConfig = networkConfig({
         entranceFee:0.01 ether,
-        interval:3600,
+        interval:30,
         keyHash:0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
         subId:0,
         vrfCoordinator:address(mockVRFCoordinator),
-        callbackGasLimit:500000
+        callbackGasLimit:500000,
+        link:address(0)   //we gonna deploy link contract in anvil and add to here , for now lets just make it 0X00...
       });
     return anvilEthConfig;
 

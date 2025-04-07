@@ -1,18 +1,48 @@
 //SPDX-License-Identifier:MIT
 pragma solidity ^0.8.19;
 
+
+/*///////////////////////////////////////////////
+                  Imports
+////////////////////////////////////////////////*/
+
 import {Test,console} from "forge-std/Test.sol";
 //import {console} from "forge-std/console.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 contract TestRaffle is Test{
 
-  /**events */
+  /*///////////////////////////////////////////////
+                  Errors
+  ////////////////////////////////////////////////*/
+
+  error Raffle__SendMoreToEnterRaffle();
+  error Raffle__transferError();
+  error Raffle__resultsCounting();
+  error Raffle__upkeepNotNeeded(uint256 playersLength , uint256 contractBalance , RaffleState s_raffleState);
+
+  /*///////////////////////////////////////////////
+                  Enums
+  ////////////////////////////////////////////////*/
+
+  enum RaffleState {
+    OPEN,
+    COUNTING
+  }
+
+  /*///////////////////////////////////////////////
+                  Events
+  ////////////////////////////////////////////////*/
+
   event raffleEntered(address indexed player);
   event winnerPicked(address indexed winner);
 
+  /*///////////////////////////////////////////////
+                Instances & State Variables
+  ////////////////////////////////////////////////*/
 
   DeployRaffle deployRaffle = new DeployRaffle();
   Raffle raffle;
@@ -22,6 +52,9 @@ contract TestRaffle is Test{
   uint256 USER_STARTING_BALANCE = 10 ether;
   uint256 SENDING_ETH_AMOUNT = 0.1 ether;
 
+  /*///////////////////////////////////////////////
+                  Setup Function
+  ////////////////////////////////////////////////*/
 
   function setUp()public {
     (raffle,) = deployRaffle.run();
@@ -30,6 +63,26 @@ contract TestRaffle is Test{
     vm.deal(USER2, USER_STARTING_BALANCE);
   }
 
+  /*///////////////////////////////////////////////
+                  Modifiers
+  ////////////////////////////////////////////////*/
+
+  modifier usersEnteredAndIntervalPassed(){
+    vm.prank(USER);
+    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+    vm.prank(USER2);
+    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+
+    vm.warp(block.timestamp + raffle.getInterval() + 1);
+    vm.roll(block.number + 1);
+    _;
+  }
+
+  
+
+  /*///////////////////////////////////////////////
+              enterRaffle Tests
+  ////////////////////////////////////////////////*/
 
 
   function testRaffle_playersShouldPayEntranceFee()public {
@@ -52,6 +105,31 @@ contract TestRaffle is Test{
     assertEq(address(USER).balance , USER_STARTING_BALANCE - SENDING_ETH_AMOUNT);
   }
 
+  function testRaffle_raffleEnteredEventEmiting() public {
+    vm.prank(USER);
+
+    vm.expectEmit(true, false, false, false, address(raffle));
+    emit raffleEntered(USER);
+
+    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+  }
+
+  function testRaffle_notAllowingPlayersEnterWhileCounting()public usersEnteredAndIntervalPassed{
+    
+    raffle.performUpkeep("");
+
+    //now raffle state has been set to COUNTING
+    //so now try to enter raffle
+    vm.prank(USER);
+    vm.expectRevert(Raffle.Raffle__resultsCounting.selector);
+    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+
+  }
+
+  /*///////////////////////////////////////////////
+           Enums & Variables Tests
+  ////////////////////////////////////////////////*/
+
   function testRaffle_enteredPlayersRecord() public {
     vm.prank(USER);
     raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
@@ -65,31 +143,113 @@ contract TestRaffle is Test{
     assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
   }
 
-  function testRaffle_raffleEnteredEventEmiting() public {
-    vm.prank(USER);
+  
+  /*///////////////////////////////////////////////
+              checkUpKeep Tests
+  ////////////////////////////////////////////////*/
 
-    vm.expectEmit(true, false, false, false, address(raffle));
-    emit raffleEntered(USER);
+  function testRaffle_checkUpKeepReturnFalseIfBalanceIsZero()public {
+    vm.warp(block.timestamp + raffle.getInterval() + 1);
+    vm.roll(block.number + 1);
 
-    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+    (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+    assert(!upkeepNeeded);
   }
 
-  function testRaffle_notAllowingPlayersEnterWhileCounting()public {
+  function testRaffle_checkUpKeepReturnFalseIfIntervalHasNotPassed()public{
+    
     vm.prank(USER);
     raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
     vm.prank(USER2);
     raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
 
-    vm.warp(block.timestamp + raffle.getInterval() + 1);
-    vm.roll(block.number + 1);
+    (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+    assert(!upkeepNeeded);
+  }
+
+  function testRaffle_checkUpKeepReturnFalseIfRaffleStateIsCounting()public usersEnteredAndIntervalPassed{
+
     raffle.performUpkeep("");
 
-    //now raffle state has been set to COUNTING
-    //so now try to enter raffle
-    vm.prank(USER);
-    vm.expectRevert(Raffle.Raffle__resultsCounting.selector);
-    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+    
+    (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+    assert(!upkeepNeeded);
 
   }
+
+  /*///////////////////////////////////////////////
+              performUpKeep Tests
+  ////////////////////////////////////////////////*/
+
+
+  function testRaffle_perfromUpKeepOnlyRunIfUpKeepNeededIsTrue()public usersEnteredAndIntervalPassed{
+    
+    raffle.performUpkeep("");
+  }
+
+  function testRaffle_perfromUpKeepRevertIfUpKeeNeededIsFalse()public{
+    uint256 playersLength = 1;
+    uint256 contractBalance =SENDING_ETH_AMOUNT;
+    Raffle.RaffleState raffleState = raffle.getRaffleState();
+
+    vm.prank(USER);
+    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+
+    
+
+    vm.expectRevert(abi.encodeWithSelector(Raffle.Raffle__upkeepNotNeeded.selector, playersLength, contractBalance, raffleState));
+
+    raffle.performUpkeep("");
+
+  }
+
+  function testRaffle_performUpKeepChangesRaffleState()public usersEnteredAndIntervalPassed{
+    
+    Raffle.RaffleState preRaffleState = raffle.getRaffleState();
+    raffle.performUpkeep("");
+    Raffle.RaffleState postRaffleState = raffle.getRaffleState();
+
+    assert(preRaffleState != postRaffleState);
+
+    //now check if event is emiting correctly
+
+  }
+
+  function testRaffle_performUpKeepEmitingEventCorrectly()public usersEnteredAndIntervalPassed{
+    
+
+    vm.recordLogs();
+    raffle.performUpkeep("");
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+    bytes32 requestId = entries[1].topics[1];
+
+    assert(requestId > 0);
+  }
+
+  /*///////////////////////////////////////////////
+              fulfillRandomWords Tests
+  ////////////////////////////////////////////////*/
+
+
+
+
+
+
+  
+
+  /*///////////////////////////////////////////////
+              getterFunctions Tests
+  ////////////////////////////////////////////////*/
+
+  function testRaffle_getEntranceFeeIsWorking()public view{
+    uint256 expectedEntranceFee = 0.01 ether;
+    assert(expectedEntranceFee == raffle.getEntranceFee());
+  }
+
+  function testRaffle_getIntervalIsWorking()public view{
+    uint256 expectedInterval = 30;
+    assert(expectedInterval == raffle.getInterval());
+  }
+
 
 }

@@ -1,12 +1,12 @@
 //SPDX-License-Identifier:MIT
 pragma solidity^0.8.19;
 
+/*///////////////////////////////////////////////
+                  Imports
+////////////////////////////////////////////////*/
+
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-
-
-
-
 
 
 /**
@@ -17,24 +17,37 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  */
 contract Raffle is VRFConsumerBaseV2Plus {
 
-  //enums
+  /*///////////////////////////////////////////////
+                  Enums
+  ////////////////////////////////////////////////*/
+
   enum RaffleState {
   OPEN,
   COUNTING
   }
 
-  /**errors */
+  /*///////////////////////////////////////////////
+                  Errors
+  ////////////////////////////////////////////////*/
+
   error Raffle__SendMoreToEnterRaffle();
   error Raffle__transferError();
   error Raffle__resultsCounting();
   error Raffle__upkeepNotNeeded(uint256 playersLength , uint256 contractBalance , RaffleState s_raffleState);
 
-  /**events */
+  /*///////////////////////////////////////////////
+                  Events
+  ////////////////////////////////////////////////*/
+
   event raffleEntered(address indexed player);
   event winnerPicked(address indexed winner);
+  event requestedRaffleWinner(uint256 indexed requestId);
 
 
-  /**state variables */
+  /*///////////////////////////////////////////////
+                  State Variables
+  ////////////////////////////////////////////////*/
+
   uint16 private constant  REQUEST_CONFIRMATIONS =3 ;
   uint32 private constant NUM_WORDS = 1;
 
@@ -52,6 +65,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
   
 
+  /*///////////////////////////////////////////////
+                  constructor
+  ////////////////////////////////////////////////*/
 
   constructor(uint256 entranceFee,uint256 interval,address vrfCoordinator,bytes32 keyHash, uint256 subId, uint32 callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinator){
     
@@ -66,7 +82,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
   }
 
-  /**functions */
+  /*///////////////////////////////////////////////
+                  functions
+  ////////////////////////////////////////////////*/
 
   function checkUpkeep(bytes memory) public view returns(bool upkeepNeeded, bytes memory){
     /**
@@ -116,7 +134,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
       )
     });
 
-    s_vrfCoordinator.requestRandomWords(request);
+    uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+    emit requestedRaffleWinner(requestId);
     
 
    
@@ -137,7 +156,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
 
   
-  /**getter functions */
+  /*///////////////////////////////////////////////
+                  getter functions
+  ////////////////////////////////////////////////*/
 
   function getEntranceFee() public view returns(uint256){
     return i_entranceFee;
