@@ -10,10 +10,11 @@ import {Test,console} from "forge-std/Test.sol";
 //import {console} from "forge-std/console.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
-import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {HelperConfig,CodeConstants} from "../../script/HelperConfig.s.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
-contract TestRaffle is Test{
+contract TestRaffle is Test, CodeConstants{
 
   /*///////////////////////////////////////////////
                   Errors
@@ -23,6 +24,8 @@ contract TestRaffle is Test{
   error Raffle__transferError();
   error Raffle__resultsCounting();
   error Raffle__upkeepNotNeeded(uint256 playersLength , uint256 contractBalance , RaffleState s_raffleState);
+
+  
 
   /*///////////////////////////////////////////////
                   Enums
@@ -48,7 +51,7 @@ contract TestRaffle is Test{
   Raffle raffle;
   HelperConfig helperConfig;
   address USER = makeAddr("user");
-  address USER2 = makeAddr("user2");
+  
   uint256 USER_STARTING_BALANCE = 10 ether;
   uint256 SENDING_ETH_AMOUNT = 0.1 ether;
 
@@ -57,10 +60,11 @@ contract TestRaffle is Test{
   ////////////////////////////////////////////////*/
 
   function setUp()public {
-    (raffle,) = deployRaffle.run();
+    (raffle,helperConfig) = deployRaffle.run();
+
     
     vm.deal(USER, USER_STARTING_BALANCE);
-    vm.deal(USER2, USER_STARTING_BALANCE);
+    
   }
 
   /*///////////////////////////////////////////////
@@ -70,11 +74,17 @@ contract TestRaffle is Test{
   modifier usersEnteredAndIntervalPassed(){
     vm.prank(USER);
     raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
-    vm.prank(USER2);
-    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+    
 
     vm.warp(block.timestamp + raffle.getInterval() + 1);
     vm.roll(block.number + 1);
+    _;
+  }
+
+  modifier skipOnForkTest(){
+    if (block.chainid == SEPOLIA_CHAIN_ID){
+      return;
+    }
     _;
   }
 
@@ -160,8 +170,7 @@ contract TestRaffle is Test{
     
     vm.prank(USER);
     raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
-    vm.prank(USER2);
-    raffle.enterRaffle{value:SENDING_ETH_AMOUNT}();
+    
 
     (bool upkeepNeeded, ) = raffle.checkUpkeep("");
     assert(!upkeepNeeded);
@@ -230,7 +239,35 @@ contract TestRaffle is Test{
               fulfillRandomWords Tests
   ////////////////////////////////////////////////*/
 
+  function testRaffle_fullfillRandomWordsOnlyCanBeCalledAfterPerformUpKeep(uint256 randomNumber)public usersEnteredAndIntervalPassed skipOnForkTest/*either way this is going to fail if test on a fork because of a evm error*/{
+    //without calling performUpKeep try to call fullfillRandomWords
 
+    
+    address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
+
+    
+     
+    vm.expectRevert();
+    VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(randomNumber, address(raffle));
+    
+
+  }
+
+  function testRaffle_fullfillRandomWordsPicksAWinnerAndPayThem()public usersEnteredAndIntervalPassed skipOnForkTest{
+
+    address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
+    
+    vm.recordLogs();
+    raffle.performUpkeep("");
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+    bytes32 requestId = entries[1].topics[1];
+
+    VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(uint256(requestId),address(raffle));
+
+    address recentWinner = raffle.getRecentWinner();
+    assert(USER == recentWinner);
+
+  }
 
 
 

@@ -13,9 +13,9 @@ abstract contract CodeConstants {
 
   uint256 constant public SEPOLIA_CHAIN_ID =  11155111;
   uint256 constant public ANVIL_CHAIN_ID =  31337;
-  uint96 constant public MOCK_BASE_FEE = 0.25 ether;
+  uint96 constant public MOCK_BASE_FEE = 0.1 ether;
   uint96 constant public MOCK_GAS_PRICE = 1e9;
-  int256 constant public MOCK_WEI_PER_UNIT_LINK = 4e15 ;
+  int256 constant public MOCK_WEI_PER_UNIT_LINK = 4e15;
 
 }
 
@@ -25,7 +25,6 @@ abstract contract CodeConstants {
 
 contract HelperConfig is CodeConstants,Script {
 
-  
   error HelperConfig__invalidNetwork();
   error HelperConfig__invalidChainId(uint256 chainid);
 
@@ -37,6 +36,7 @@ contract HelperConfig is CodeConstants,Script {
     uint256 subId;
     uint32 callbackGasLimit;
     address link;
+    address account;
     
   }
 
@@ -82,7 +82,8 @@ contract HelperConfig is CodeConstants,Script {
         keyHash:0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,subId:628368851340348519913626481334836042622242987999739258721281183736411821644,
         vrfCoordinator:0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
         callbackGasLimit:500000,
-        link:0x779877A7B0D9E8603169DdbD7836e478b4624789 //0x779877A7B0D9E8603169DdbD7836e478b4624789
+        link:0x779877A7B0D9E8603169DdbD7836e478b4624789,
+        account:0xB63A6d677B8422aab9f48252694771950c277a37
       });
     return sepoliaEthConfig;
   }
@@ -112,8 +113,9 @@ contract HelperConfig is CodeConstants,Script {
         keyHash:0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
         subId:0,
         vrfCoordinator:address(mockVRFCoordinator),
-        callbackGasLimit:500000,
-        link:address(0)   //we gonna deploy link contract in anvil and add to here , for now lets just make it 0X00...
+        callbackGasLimit:5000000,
+        link:address(0),
+        account:0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38
       });
     return anvilEthConfig;
 
