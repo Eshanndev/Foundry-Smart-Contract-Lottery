@@ -29,7 +29,7 @@ contract CreateSubscription is Script {
 }
 
 contract FundSubscription is CodeConstants, Script {
-    uint256 public constant FUND_AMOUNT = 10 ether; // or 3 Link
+    uint256 public constant FUND_AMOUNT = 1 ether; // or 3 Link
 
     function run() public {
         fundSubscriptionUsingConfig();
@@ -49,7 +49,7 @@ contract FundSubscription is CodeConstants, Script {
     function fundSubscription(address _vrfCoordinator, uint256 _subId, address _link, address account) public {
         if (block.chainid == ANVIL_CHAIN_ID) {
             vm.startBroadcast( /*account*/ );
-            VRFCoordinatorV2_5Mock(_vrfCoordinator).fundSubscription(_subId, FUND_AMOUNT * 10);
+            VRFCoordinatorV2_5Mock(_vrfCoordinator).fundSubscription(_subId, FUND_AMOUNT * 100);
             vm.stopBroadcast();
         } else {
             vm.startBroadcast(account);
