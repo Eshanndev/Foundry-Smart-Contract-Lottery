@@ -42,8 +42,3 @@ jobs:
         run: |
           forge test -vvv
         id: test
-
-      - name: Debug Forge build
-        run: |
-          forge build
-        --sizes || (echo "Build failed. Checking for issues..." && forge diagnose)
